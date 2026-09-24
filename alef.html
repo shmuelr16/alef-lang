@@ -1,0 +1,1694 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<meta charset="utf-8">
+<title>אלף</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&family=Cousine:wght@400;700&display=swap">
+<style>
+  :root{
+    --bg:#0d1117; --panel:#141a23; --panel-2:#0f151d; --edge:#232c3b;
+    --txt:#e6edf3; --muted:#8b98ab; --gold:#f0b429; --green:#3fb950; --red:#f85149;
+    --kw:#c792ea; --bi:#82aaff; --str:#c3e88d; --num:#f78c6c; --com:#5f6b7d; --op:#89ddff;
+    --ui:"Assistant","Heebo",-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+    /* Cousine ships a Hebrew subset, so Hebrew code lines stay monospaced */
+    --mono:"Cousine","SF Mono","Monaco","Menlo","DejaVu Sans Mono",Consolas,"Courier New",monospace;
+    --code-size:15px; --code-lh:1.75;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--ui);
+       direction:rtl;-webkit-font-smoothing:antialiased;overflow:hidden}
+  .app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+
+  /* ---------- header ---------- */
+  .top{display:flex;align-items:center;gap:16px;padding:10px 18px;
+       background:linear-gradient(180deg,#161d27,#111721);border-bottom:1px solid var(--edge);flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:12px;flex:1;min-width:200px}
+  .logo{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;
+        background:linear-gradient(140deg,var(--gold),#e0761b);color:#20160a;
+        font-size:26px;font-weight:800;line-height:1;box-shadow:0 4px 16px rgba(240,180,41,.28)}
+  .brand h1{margin:0;font-size:19px;letter-spacing:.5px}
+  .brand p{margin:2px 0 0;font-size:12px;color:var(--muted)}
+  .actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .btn{font-family:var(--ui);font-size:13px;font-weight:600;color:var(--txt);cursor:pointer;
+       background:#1c2430;border:1px solid var(--edge);border-radius:9px;padding:9px 14px;
+       transition:.15s;display:inline-flex;align-items:center;gap:7px}
+  .btn:hover{background:#252f3e;border-color:#38445a}
+  .btn:active{transform:translateY(1px)}
+  .btn.run{background:linear-gradient(180deg,#2ea043,#238636);border-color:#2f9e4a;color:#fff;
+           box-shadow:0 3px 12px rgba(46,160,67,.3)}
+  .btn.run:hover{background:linear-gradient(180deg,#35b44b,#28993d)}
+  .btn kbd{font-family:var(--mono);font-size:10px;background:rgba(0,0,0,.25);
+           border-radius:4px;padding:2px 5px;opacity:.85}
+  select.btn{padding:9px 10px;appearance:none;background-image:none}
+  select.btn option{background:#1c2430;color:var(--txt)}
+
+  /* ---------- layout ---------- */
+  main{flex:1;display:grid;grid-template-columns:1.2fr .8fr;gap:1px;background:var(--edge);min-height:0}
+  .pane{display:flex;flex-direction:column;background:var(--panel-2);min-width:0;min-height:0}
+  .pane-head{display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:12px;color:var(--muted);
+             background:var(--panel);border-bottom:1px solid var(--edge);flex-shrink:0}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--gold);flex-shrink:0}
+  .spacer{flex:1}
+
+  /* ---------- editor ---------- */
+  .editor{flex:1;display:flex;min-height:0;position:relative;background:var(--panel-2)}
+  .gutter{flex-shrink:0;width:52px;overflow:hidden;padding:14px 10px 60px 8px;
+          font:var(--code-size)/var(--code-lh) var(--mono);color:#4d5a6e;text-align:left;
+          background:#0c1219;border-left:1px solid var(--edge);user-select:none;white-space:pre}
+  .gutter b{display:block;font-weight:400}
+  .gutter b.on{color:var(--gold)}
+  .code-area{position:relative;flex:1;min-width:0}
+  #hl,#code{position:absolute;inset:0;margin:0;padding:14px 14px 60px 14px;border:0;
+            font:var(--code-size)/var(--code-lh) var(--mono);
+            white-space:pre;direction:rtl;text-align:right;tab-size:4;letter-spacing:0}
+  #hl{overflow:hidden;pointer-events:none;color:var(--txt)}
+  #code{width:100%;height:100%;overflow:auto;resize:none;outline:none;background:transparent;
+        color:transparent;caret-color:var(--gold)}
+  #code::selection{background:rgba(240,180,41,.28)}
+  .c-kw{color:var(--kw);font-weight:600}
+  .c-bi{color:var(--bi)}
+  .c-str{color:var(--str)}
+  .c-num{color:var(--num)}
+  .c-com{color:var(--com);font-style:italic}
+  .c-op{color:var(--op)}
+  .c-punc{color:#a6accd}
+  .c-id{color:var(--txt)}
+
+  /* ---------- tabs + output ---------- */
+  .tabs{display:flex;gap:2px;background:var(--panel);border-bottom:1px solid var(--edge);padding:0 8px;flex-shrink:0}
+  .tab{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;
+       font-family:var(--ui);font-size:13px;font-weight:600;padding:11px 14px;transition:.15s}
+  .tab:hover{color:var(--txt)}
+  .tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+  .tabpanel{display:none;flex:1;min-height:0;overflow:auto}
+  .tabpanel.active{display:block}
+  .console{padding:14px 16px 40px;font:14px/1.7 var(--mono);direction:rtl;text-align:right;
+           white-space:pre-wrap;word-break:break-word}
+  .console .ln{padding:1px 0}
+  .iso{unicode-bidi:isolate;direction:ltr}
+  .console .err{color:var(--red);background:rgba(248,81,73,.09);border-right:3px solid var(--red);
+                padding:8px 12px;border-radius:6px;margin:8px 0;white-space:pre-wrap}
+  .console .ok{color:var(--muted);font-size:12px;padding-top:10px;border-top:1px dashed #26303f;margin-top:12px}
+  .console .empty{color:#55617a;font-family:var(--ui);font-size:13px}
+
+  /* ---------- docs ---------- */
+  .docs{padding:18px 20px 60px;font-size:14px;line-height:1.85}
+  .docs h2{font-size:15px;color:var(--gold);margin:26px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--edge)}
+  .docs h2:first-child{margin-top:0}
+  .docs p{margin:6px 0;color:#c4cdda}
+  .docs .k{font-family:var(--mono);background:#1c2430;border:1px solid var(--edge);
+           border-radius:5px;padding:1px 6px;font-size:12.5px;color:var(--bi)}
+  .sample{background:#0c1219;border:1px solid var(--edge);border-radius:9px;padding:11px 13px;margin:9px 0;
+          font:13px/1.7 var(--mono);direction:rtl;text-align:right;white-space:pre;overflow-x:auto}
+  .tbl{width:100%;border-collapse:collapse;margin:8px 0;font-size:13px}
+  .tbl td{border-bottom:1px solid #1d2532;padding:6px 8px;vertical-align:top}
+  .tbl td:first-child{font-family:var(--mono);color:var(--bi);white-space:nowrap;width:1%}
+
+  /* ---------- status ---------- */
+  .status{display:flex;gap:14px;align-items:center;padding:6px 16px;font-size:11.5px;color:var(--muted);
+          background:var(--panel);border-top:1px solid var(--edge);flex-shrink:0}
+  .status .pill{background:#1c2430;border:1px solid var(--edge);border-radius:20px;padding:2px 10px}
+
+  @media (max-width:860px){
+    main{grid-template-columns:1fr;grid-template-rows:1.1fr .9fr}
+    .brand p{display:none}
+    .btn kbd{display:none}
+  }
+  ::-webkit-scrollbar{width:11px;height:11px}
+  ::-webkit-scrollbar-track{background:#0c1219}
+  ::-webkit-scrollbar-thumb{background:#2a3444;border-radius:8px;border:2px solid #0c1219}
+  ::-webkit-scrollbar-thumb:hover{background:#3a465a}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">א</div>
+      <div>
+        <h1>אלף</h1>
+        <p>שפת תכנות בעברית · כתוב קוד והרץ אותו כאן בדפדפן</p>
+      </div>
+    </div>
+    <div class="actions">
+      <select class="btn" id="examples" title="דוגמאות"></select>
+      <button class="btn" id="copyBtn">העתק</button>
+      <button class="btn" id="clearBtn">נקה</button>
+      <button class="btn run" id="runBtn">▶ הרץ <kbd>Ctrl</kbd><kbd>↵</kbd></button>
+    </div>
+  </header>
+
+  <main>
+    <section class="pane">
+      <div class="pane-head">
+        <span class="dot"></span> תוכנית.אלף
+        <span class="spacer"></span>
+        <span id="pos">שורה 1, עמודה 1</span>
+      </div>
+      <div class="editor">
+        <div class="gutter" id="gutter"></div>
+        <div class="code-area">
+          <pre id="hl" aria-hidden="true"></pre>
+          <textarea id="code" spellcheck="false" wrap="off" autocomplete="off"
+                    autocapitalize="off" autocorrect="off"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <section class="pane">
+      <div class="tabs">
+        <button class="tab active" data-tab="out">פלט</button>
+        <button class="tab" data-tab="docs">מדריך השפה</button>
+      </div>
+      <div class="tabpanel active" id="tab-out">
+        <div class="console" id="out"><span class="empty">לחץ על "הרץ" כדי להריץ את התוכנית…</span></div>
+      </div>
+      <div class="tabpanel" id="tab-docs">
+        <div class="docs">
+          <h2>הדבר הראשון</h2>
+          <p>כל שורה היא פקודה. הערות מתחילות ב־<span class="k">#</span>. להדפסה משתמשים ב־<span class="k">הצג</span>.</p>
+          <pre class="sample"># זו הערה
+הצג "שלום עולם!"
+הצג "התוצאה היא:", 2 + 2</pre>
+
+          <p style="color:#8b98ab;font-size:13px">אפשר לכתוב מחרוזות עם גרשיים רגילים <span class="k">"טקסט"</span>
+          וגם עם גרשיים עבריים <span class="k">״טקסט״</span> או <span class="k">׳טקסט׳</span> — מה שנוח לך במקלדת.
+          גם מקף עברי עובד: <span class="k">לכל i מ־1 עד־10</span>.</p>
+
+          <h2>משתנים</h2>
+          <p>יוצרים משתנה עם <span class="k">יהי</span> (או <span class="k">קבע</span>), ומשנים אותו עם <span class="k">=</span>.</p>
+          <pre class="sample">יהי שם = "נועה"
+יהי גיל = 17
+גיל = גיל + 1
+הצג שם + " בת " + גיל</pre>
+
+          <h2>תנאים</h2>
+          <p>המבנה: <span class="k">אם</span> … <span class="k">אז</span> … <span class="k">אחרת אם</span> … <span class="k">אחרת</span> … <span class="k">סוף</span>.</p>
+          <pre class="sample">יהי ציון = 84
+
+אם ציון >= 90 אז
+    הצג "מצוין"
+אחרת אם ציון >= 70 אז
+    הצג "יפה מאוד"
+אחרת
+    הצג "צריך לחזור על החומר"
+סוף</pre>
+
+          <h2>לולאות</h2>
+          <p>לולאת מספרים: <span class="k">לכל</span> שם <span class="k">מ</span> … <span class="k">עד</span> … (אפשר להוסיף <span class="k">בקפיצות</span>).<br>
+          לולאה על רשימה: <span class="k">לכל</span> שם <span class="k">מתוך</span> רשימה.<br>
+          לולאת תנאי: <span class="k">כלעוד</span> תנאי. אפשר לעצור עם <span class="k">עצור</span> ולדלג עם <span class="k">המשך</span>.</p>
+          <pre class="sample">לכל מספר מ 1 עד 5
+    הצג "שורה " + מספר
+סוף
+
+לכל אות מתוך ["א", "ב", "ג"]
+    הצג אות
+סוף
+
+יהי ספירה = 3
+כלעוד ספירה > 0
+    הצג ספירה
+    ספירה = ספירה - 1
+סוף</pre>
+
+          <h2>פונקציות</h2>
+          <p><span class="k">פונקציה</span> שם(פרמטרים) … <span class="k">החזר</span> ערך … <span class="k">סוף</span>.</p>
+          <pre class="sample">פונקציה ריבוע(מספר)
+    החזר מספר * מספר
+סוף
+
+הצג ריבוע(7)</pre>
+
+          <h2>רשימות ומפות</h2>
+          <p>רשימה נכתבת בסוגריים מרובעים, מפה (מילון) בסוגריים מסולסלים. הגישה לאיבר לפי מקום או מפתח; מקום 0 הוא הראשון, ומקום ‎-1 הוא האחרון.</p>
+          <pre class="sample">יהי ציונים = [90, 78, 100]
+הצג ציונים[0], ציונים[-1], אורך(ציונים)
+הוסף(ציונים, 65)
+
+יהי תלמיד = {"שם": "דן", "כיתה": 10}
+הצג תלמיד.שם
+הצג תלמיד["כיתה"]</pre>
+
+          <h2>אופרטורים</h2>
+          <table class="tbl">
+            <tr><td>+ - * / %</td><td>חיבור, חיסור, כפל, חילוק, שארית. <span class="k">+</span> מחבר גם טקסטים ורשימות</td></tr>
+            <tr><td>^</td><td>חזקה (2 ^ 10 = 1024)</td></tr>
+            <tr><td>== != &lt; &lt;= &gt; &gt;=</td><td>השוואות</td></tr>
+            <tr><td>וגם · או · לא</td><td>קשרים לוגיים</td></tr>
+            <tr><td>אמת · שקר · כלום</td><td>הערכים המיוחדים</td></tr>
+          </table>
+
+          <h2>פונקציות מובנות</h2>
+          <table class="tbl" id="bi-table"></table>
+
+          <h2>הערה על כיוון הטקסט</h2>
+          <p>בעורך עצמו, רשימה של מספרים כמו <span class="k">[95, 78, 88]</span> תיראה בסדר הפוך.
+          זו לא תקלה בשפה אלא כלל של יוניקוד: מספרים "מושכים" לימין את הפסיקים שביניהם בתוך טקסט עברי,
+          וכך זה מוצג בכל עורך טקסט. <b>הפלט למטה מתוקן</b> ומוצג תמיד בסדר הנכון,
+          וגם החישוב עצמו כמובן נכון תמיד.</p>
+
+          <h2>קיצורי מקלדת</h2>
+          <table class="tbl">
+            <tr><td>Ctrl / ⌘ + Enter</td><td>הרצת התוכנית</td></tr>
+            <tr><td>Tab</td><td>הזחה (Shift+Tab לביטול הזחה)</td></tr>
+          </table>
+          <p style="color:#6b7787;font-size:12px;margin-top:18px">הקוד נשמר אוטומטית בדפדפן — גם אם תסגור את הדף.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="status">
+    <span class="pill" id="status">מוכן</span>
+    <span id="meta"></span>
+    <span class="spacer" style="flex:1"></span>
+    <span>אלף · גרסה 1.0</span>
+  </footer>
+</div>
+
+<script>
+/* ===== CORE START ===== */
+/* ============================================================
+   אלף (Alef) — a small programming language written in Hebrew.
+   Pipeline:  tokenize -> parse (AST) -> tree-walking interpreter
+   ============================================================ */
+
+class AlefError extends Error {
+  constructor(msg, line){ super(msg); this.line = line; }
+}
+
+const KEYWORDS = new Set([
+  'יהי','קבע','אם','אז','אחרת','סוף','כלעוד','לכל','מ','עד','בקפיצות','מתוך',
+  'פונקציה','החזר','עצור','המשך','הצג','אמת','שקר','כלום','וגם','או','לא'
+]);
+
+/* ---------------------------- tokenizer ---------------------------- */
+
+/* Identifiers hold Latin letters, Hebrew letters, digits and underscore.
+   Geresh and gershayim (׳ ״) are inside the Hebrew Unicode block but they are
+   punctuation, not letters: they open a string. The exception is a mark that
+   follows a letter inside a word, as in the acronym צה״ל. */
+const RE_ID_START = /[A-Za-z_\u05D0-\u05EA\u05EF-\u05F2]/;
+const RE_ID_PART  = /[A-Za-z0-9_\u05D0-\u05EA\u05EF-\u05F2]/;
+const RE_ID_MARK  = /[\u05F3\u05F4\u2018\u2019]/;
+
+/* A Hebrew keyboard types ״ and ׳, and some systems turn " into curly quotes.
+   Each opening quote is listed with every quote that may close it. */
+const QUOTES = {
+  '"': '"',
+  "'": "'",
+  '\u05F4': '\u05F4',                    /* ״ gershayim  */
+  '\u05F3': '\u05F3',                    /* ׳ geresh     */
+  '\u201C': '\u201D\u201C',              /* “ ... ”      */
+  '\u201D': '\u201D\u201C',
+  '\u2018': '\u2019\u2018',              /* ‘ ... ’      */
+  '\u2019': '\u2019\u2018'
+};
+
+const MAQAF = '\u05BE';   /* ־ — Hebrew writes "מ־1 עד־10", so we let it separate tokens */
+
+const isDigit = c => c >= '0' && c <= '9';
+const isIdentStart = c => RE_ID_START.test(c);
+const isIdentPart = c => RE_ID_PART.test(c);
+
+function tokenize(src){
+  const toks = [];
+  let i = 0, line = 1;
+  const push = (type, value) => toks.push({ type, value, line });
+
+  while (i < src.length){
+    const c = src[i];
+
+    if (c === '\n'){ push('NL', '\n'); line++; i++; continue; }
+    if (c === ' ' || c === '\t' || c === '\r' || c === MAQAF){ i++; continue; }
+    if (c === ';'){ push('NL', ';'); i++; continue; }
+    if (c === '#' || (c === '/' && src[i+1] === '/')){
+      while (i < src.length && src[i] !== '\n') i++;
+      continue;
+    }
+
+    if (isDigit(c) || (c === '.' && isDigit(src[i+1]))){
+      const s = i;
+      while (i < src.length && isDigit(src[i])) i++;
+      if (src[i] === '.' && isDigit(src[i+1])){ i++; while (i < src.length && isDigit(src[i])) i++; }
+      push('NUM', parseFloat(src.slice(s, i)));
+      continue;
+    }
+
+    if (QUOTES[c]){
+      const q = c, closers = QUOTES[c], startLine = line;
+      i++;
+      let out = '';
+      while (i < src.length && closers.indexOf(src[i]) === -1){
+        if (src[i] === '\\'){
+          const n = src[i+1];
+          out += n === 'n' ? '\n' : n === 't' ? '\t' : n === '\\' ? '\\' : closers.indexOf(n) !== -1 ? n : '\\' + n;
+          i += 2;
+        } else {
+          if (src[i] === '\n') line++;
+          out += src[i++];
+        }
+      }
+      if (i >= src.length) throw new AlefError('מחרוזת שלא נסגרה — חסר ' + q + ' בסוף', startLine);
+      i++;
+      push('STR', out);
+      continue;
+    }
+
+    if (isIdentStart(c)){
+      const s = i;
+      i++;
+      while (i < src.length){
+        if (isIdentPart(src[i])){ i++; continue; }
+        /* ״ or ׳ glued to the previous letter belongs to the word (צה״ל) */
+        if (RE_ID_MARK.test(src[i]) && isIdentPart(src[i - 1])){ i++; continue; }
+        break;
+      }
+      let w = src.slice(s, i);
+      /* ...unless the word up to that mark is a keyword, in which case the mark
+         really opens a string written without a space: הצג״היי״ */
+      const mark = w.search(RE_ID_MARK);
+      if (mark > 0 && KEYWORDS.has(w.slice(0, mark))){
+        w = w.slice(0, mark);
+        i = s + mark;
+      }
+      push(KEYWORDS.has(w) ? 'KW' : 'ID', w);
+      continue;
+    }
+
+    const two = src.substr(i, 2);
+    if (two === '==' || two === '!=' || two === '<=' || two === '>='){ push('OP', two); i += 2; continue; }
+    if (two === '&&'){ push('KW', 'וגם'); i += 2; continue; }
+    if (two === '||'){ push('KW', 'או');  i += 2; continue; }
+    if ('+-*/%^=<>(),[]{}:.!'.indexOf(c) !== -1){ push('OP', c); i++; continue; }
+
+    throw new AlefError('תו שאינני מכיר: "' + c + '"', line);
+  }
+  push('EOF', null);
+  return toks;
+}
+
+/* ------------------------------ parser ------------------------------ */
+
+class Parser {
+  constructor(toks){ this.t = toks; this.p = 0; }
+  get cur(){ return this.t[this.p]; }
+  next(){ return this.t[this.p++]; }
+  at(type, value){
+    const t = this.cur;
+    return t.type === type && (value === undefined || t.value === value);
+  }
+  accept(type, value){ return this.at(type, value) ? this.next() : null; }
+  expect(type, value, msg){
+    if (this.at(type, value)) return this.next();
+    throw new AlefError(msg || ('ציפיתי כאן ל־"' + value + '"'), this.cur.line);
+  }
+  isEnd(enders){ return this.cur.type === 'KW' && enders.indexOf(this.cur.value) !== -1; }
+
+  parseProgram(){
+    const b = this.parseStatements([]);
+    if (!this.at('EOF')) throw new AlefError('לא ציפיתי ל־"' + this.cur.value + '" כאן', this.cur.line);
+    return b;
+  }
+
+  parseStatements(enders){
+    const body = [];
+    for(;;){
+      while (this.at('NL')) this.next();
+      if (this.at('EOF') || this.isEnd(enders)) break;
+      body.push(this.parseStatement(enders));
+      if (!this.at('NL') && !this.at('EOF') && !this.isEnd(enders)){
+        throw new AlefError('לא ציפיתי ל־"' + this.cur.value + '" כאן — אולי חסרה ירידת שורה?', this.cur.line);
+      }
+    }
+    return { type:'Block', body };
+  }
+
+  parseStatement(enders){
+    const t = this.cur, line = t.line;
+
+    if (t.type === 'KW'){
+      switch (t.value){
+        case 'יהי': case 'קבע': {
+          this.next();
+          const name = this.expect('ID', undefined, 'אחרי "' + t.value + '" צריך לבוא שם של משתנה').value;
+          this.expect('OP', '=', 'אחרי "' + t.value + ' ' + name + '" צריך לבוא סימן =');
+          return { type:'Let', name, value:this.parseExpr(), line };
+        }
+        case 'הצג': {
+          this.next();
+          const args = [];
+          if (!this.at('NL') && !this.at('EOF') && !this.isEnd(enders)){
+            args.push(this.parseExpr());
+            while (this.accept('OP', ',')) args.push(this.parseExpr());
+          }
+          return { type:'Print', args, line };
+        }
+        case 'אם': return this.parseIf();
+        case 'כלעוד': {
+          this.next();
+          const cond = this.parseExpr();
+          this.accept('KW', 'אז'); this.accept('OP', ':');
+          const body = this.parseStatements(['סוף']);
+          this.expect('KW', 'סוף', 'חסרה המילה "סוף" שסוגרת את הלולאה "כלעוד" (שורה ' + line + ')');
+          return { type:'While', cond, body, line };
+        }
+        case 'לכל': return this.parseFor();
+        case 'פונקציה': {
+          this.next();
+          const name = this.expect('ID', undefined, 'אחרי "פונקציה" צריך לבוא שם').value;
+          this.expect('OP', '(', 'אחרי שם הפונקציה צריכים לבוא סוגריים');
+          const params = [];
+          if (!this.at('OP', ')')){
+            do { params.push(this.expect('ID', undefined, 'שם פרמטר לא תקין').value); }
+            while (this.accept('OP', ','));
+          }
+          this.expect('OP', ')', 'חסרים סוגריים סוגרים בהגדרת הפונקציה');
+          const body = this.parseStatements(['סוף']);
+          this.expect('KW', 'סוף', 'חסרה המילה "סוף" שסוגרת את הפונקציה "' + name + '"');
+          return { type:'Func', name, params, body, line };
+        }
+        case 'החזר': {
+          this.next();
+          const empty = this.at('NL') || this.at('EOF') || this.isEnd(enders) || this.at('KW','סוף');
+          return { type:'Return', value: empty ? null : this.parseExpr(), line };
+        }
+        case 'עצור':  this.next(); return { type:'Break', line };
+        case 'המשך':  this.next(); return { type:'Continue', line };
+      }
+    }
+
+    const expr = this.parseExpr();
+    if (this.at('OP', '=')){
+      this.next();
+      if (expr.type !== 'Var' && expr.type !== 'Index')
+        throw new AlefError('אפשר להשים ערך רק לתוך משתנה או איבר ברשימה/מפה', line);
+      return { type:'Assign', target:expr, value:this.parseExpr(), line };
+    }
+    return { type:'ExprStmt', expr, line };
+  }
+
+  parseIf(){
+    const line = this.cur.line;
+    this.next();
+    const cond = this.parseExpr();
+    this.accept('KW', 'אז'); this.accept('OP', ':');
+    const then = this.parseStatements(['אחרת', 'סוף']);
+    let alt = null;
+    if (this.at('KW', 'אחרת')){
+      this.next();
+      if (this.at('KW', 'אם')) return { type:'If', cond, then, alt:{ type:'Block', body:[this.parseIf()] }, line };
+      this.accept('OP', ':');
+      alt = this.parseStatements(['סוף']);
+    }
+    this.expect('KW', 'סוף', 'חסרה המילה "סוף" שסוגרת את ה"אם" (שורה ' + line + ')');
+    return { type:'If', cond, then, alt, line };
+  }
+
+  parseFor(){
+    const line = this.cur.line;
+    this.next();
+    const name = this.expect('ID', undefined, 'אחרי "לכל" צריך לבוא שם משתנה').value;
+    let node;
+    if (this.accept('KW', 'מ')){
+      const from = this.parseExpr();
+      this.expect('KW', 'עד', 'בלולאת "לכל ... מ ..." חייבת לבוא המילה "עד"');
+      const to = this.parseExpr();
+      const step = this.accept('KW', 'בקפיצות') ? this.parseExpr() : null;
+      node = { type:'ForRange', name, from, to, step, line };
+    } else if (this.accept('KW', 'מתוך')){
+      node = { type:'ForEach', name, iter:this.parseExpr(), line };
+    } else {
+      throw new AlefError('אחרי "לכל ' + name + '" צריך לבוא "מ ... עד ..." או "מתוך רשימה"', this.cur.line);
+    }
+    this.accept('KW', 'אז'); this.accept('OP', ':');
+    node.body = this.parseStatements(['סוף']);
+    this.expect('KW', 'סוף', 'חסרה המילה "סוף" שסוגרת את הלולאה "לכל" (שורה ' + line + ')');
+    return node;
+  }
+
+  /* --- expressions, lowest precedence first --- */
+  parseExpr(){ return this.parseOr(); }
+
+  parseOr(){
+    let l = this.parseAnd();
+    while (this.at('KW', 'או')){ const line = this.next().line; l = { type:'Logic', op:'או', l, r:this.parseAnd(), line }; }
+    return l;
+  }
+  parseAnd(){
+    let l = this.parseNot();
+    while (this.at('KW', 'וגם')){ const line = this.next().line; l = { type:'Logic', op:'וגם', l, r:this.parseNot(), line }; }
+    return l;
+  }
+  parseNot(){
+    if (this.at('KW', 'לא') || this.at('OP', '!')){
+      const line = this.next().line;
+      return { type:'Unary', op:'לא', v:this.parseNot(), line };
+    }
+    return this.parseCmp();
+  }
+  parseCmp(){
+    let l = this.parseAdd();
+    while (this.cur.type === 'OP' && ['==','!=','<','<=','>','>='].indexOf(this.cur.value) !== -1){
+      const t = this.next();
+      l = { type:'Binary', op:t.value, l, r:this.parseAdd(), line:t.line };
+    }
+    return l;
+  }
+  parseAdd(){
+    let l = this.parseMul();
+    while (this.at('OP','+') || this.at('OP','-')){
+      const t = this.next();
+      l = { type:'Binary', op:t.value, l, r:this.parseMul(), line:t.line };
+    }
+    return l;
+  }
+  parseMul(){
+    let l = this.parseUnary();
+    while (this.at('OP','*') || this.at('OP','/') || this.at('OP','%')){
+      const t = this.next();
+      l = { type:'Binary', op:t.value, l, r:this.parseUnary(), line:t.line };
+    }
+    return l;
+  }
+  parseUnary(){
+    if (this.at('OP','-')){ const line = this.next().line; return { type:'Unary', op:'-', v:this.parseUnary(), line }; }
+    if (this.at('OP','+')){ this.next(); return this.parseUnary(); }
+    return this.parsePow();
+  }
+  parsePow(){
+    const base = this.parsePostfix();
+    if (this.at('OP','^')){
+      const line = this.next().line;
+      return { type:'Binary', op:'^', l:base, r:this.parseUnary(), line };
+    }
+    return base;
+  }
+  parsePostfix(){
+    let e = this.parsePrimary();
+    for(;;){
+      if (this.at('OP','(')){
+        const line = this.next().line;
+        const args = [];
+        while (this.at('NL')) this.next();
+        if (!this.at('OP',')')){
+          do { while (this.at('NL')) this.next(); args.push(this.parseExpr()); while (this.at('NL')) this.next(); }
+          while (this.accept('OP', ','));
+        }
+        this.expect('OP', ')', 'חסרים סוגריים סוגרים בקריאה לפונקציה');
+        e = { type:'Call', callee:e, args, line };
+      } else if (this.at('OP','[')){
+        const line = this.next().line;
+        const idx = this.parseExpr();
+        this.expect('OP', ']', 'חסר סוגר מרובע ]');
+        e = { type:'Index', obj:e, index:idx, line };
+      } else if (this.at('OP','.')){
+        const line = this.next().line;
+        const key = this.cur;
+        if (key.type !== 'ID' && key.type !== 'KW') throw new AlefError('אחרי הנקודה צריך לבוא שם של מפתח', line);
+        this.next();
+        e = { type:'Index', obj:e, index:{ type:'Lit', value:key.value, line }, line };
+      } else break;
+    }
+    return e;
+  }
+  parsePrimary(){
+    const t = this.cur;
+    if (t.type === 'NUM' || t.type === 'STR'){ this.next(); return { type:'Lit', value:t.value, line:t.line }; }
+    if (t.type === 'ID'){ this.next(); return { type:'Var', name:t.value, line:t.line }; }
+    if (t.type === 'KW'){
+      if (t.value === 'אמת')  { this.next(); return { type:'Lit', value:true,  line:t.line }; }
+      if (t.value === 'שקר')  { this.next(); return { type:'Lit', value:false, line:t.line }; }
+      if (t.value === 'כלום') { this.next(); return { type:'Lit', value:null,  line:t.line }; }
+    }
+    if (t.type === 'OP'){
+      if (t.value === '('){
+        this.next();
+        const e = this.parseExpr();
+        this.expect('OP', ')', 'חסרים סוגריים סוגרים )');
+        return e;
+      }
+      if (t.value === '['){
+        this.next();
+        const items = [];
+        while (this.at('NL')) this.next();
+        if (!this.at('OP',']')){
+          do { while (this.at('NL')) this.next(); items.push(this.parseExpr()); while (this.at('NL')) this.next(); }
+          while (this.accept('OP', ','));
+        }
+        this.expect('OP', ']', 'חסר סוגר מרובע ] ברשימה');
+        return { type:'ListLit', items, line:t.line };
+      }
+      if (t.value === '{'){
+        this.next();
+        const pairs = [];
+        while (this.at('NL')) this.next();
+        if (!this.at('OP','}')){
+          do {
+            while (this.at('NL')) this.next();
+            const k = this.cur;
+            let keyNode;
+            if (k.type === 'STR' || k.type === 'NUM'){ this.next(); keyNode = { type:'Lit', value:k.value, line:k.line }; }
+            else if (k.type === 'ID' || k.type === 'KW'){ this.next(); keyNode = { type:'Lit', value:k.value, line:k.line }; }
+            else throw new AlefError('מפתח במפה חייב להיות טקסט או שם', k.line);
+            this.expect('OP', ':', 'אחרי המפתח במפה צריכות לבוא נקודתיים :');
+            pairs.push([keyNode, this.parseExpr()]);
+            while (this.at('NL')) this.next();
+          } while (this.accept('OP', ','));
+        }
+        this.expect('OP', '}', 'חסר סוגר מסולסל } במפה');
+        return { type:'MapLit', pairs, line:t.line };
+      }
+    }
+    if (t.type === 'NL' || t.type === 'EOF') throw new AlefError('הביטוי נגמר באמצע — חסר כאן ערך', t.line);
+    throw new AlefError('לא הבנתי את "' + t.value + '"', t.line);
+  }
+}
+
+/* ---------------------------- values ---------------------------- */
+
+function typeName(v){
+  if (v === null || v === undefined) return 'כלום';
+  if (typeof v === 'number')  return 'מספר';
+  if (typeof v === 'string')  return 'טקסט';
+  if (typeof v === 'boolean') return 'בוליאני';
+  if (Array.isArray(v))       return 'רשימה';
+  if (v instanceof Map)       return 'מפה';
+  if (v && (v.__fn || v.__builtin)) return 'פונקציה';
+  return 'ערך';
+}
+
+function fmt(v, inner, depth){
+  depth = depth || 0;
+  if (v === null || v === undefined) return 'כלום';
+  if (typeof v === 'boolean') return v ? 'אמת' : 'שקר';
+  if (typeof v === 'number'){
+    if (Number.isNaN(v)) return 'לא-מספר';
+    if (!isFinite(v)) return v > 0 ? 'אינסוף' : '-אינסוף';
+    if (Number.isInteger(v)) return String(v);
+    return String(parseFloat(v.toPrecision(12)));
+  }
+  if (typeof v === 'string') return inner ? '"' + v + '"' : v;
+  if (depth > 6) return '…';
+  if (Array.isArray(v)) return '[' + v.map(x => fmt(x, true, depth + 1)).join(', ') + ']';
+  if (v instanceof Map){
+    const parts = [];
+    v.forEach((val, k) => parts.push('"' + k + '": ' + fmt(val, true, depth + 1)));
+    return '{' + parts.join(', ') + '}';
+  }
+  if (v && v.__fn) return '<פונקציה ' + v.name + '>';
+  if (v && v.__builtin) return '<פונקציה מובנית ' + v.name + '>';
+  return String(v);
+}
+
+function truthy(v){
+  if (v === null || v === undefined || v === false) return false;
+  if (v === 0 || v === '') return false;
+  return true;
+}
+
+function deepEq(a, b){
+  if (a === b) return true;
+  if (a === null || b === null || a === undefined || b === undefined) return false;
+  if (Array.isArray(a) && Array.isArray(b))
+    return a.length === b.length && a.every((x, i) => deepEq(x, b[i]));
+  if (a instanceof Map && b instanceof Map){
+    if (a.size !== b.size) return false;
+    let ok = true;
+    a.forEach((v, k) => { if (!b.has(k) || !deepEq(v, b.get(k))) ok = false; });
+    return ok;
+  }
+  return false;
+}
+
+class Env {
+  constructor(parent){ this.vars = new Map(); this.parent = parent || null; }
+  get(name, line){
+    let e = this;
+    while (e){ if (e.vars.has(name)) return e.vars.get(name); e = e.parent; }
+    throw new AlefError('המשתנה "' + name + '" לא קיים. אפשר ליצור אותו כך:  יהי ' + name + ' = ...', line);
+  }
+  set(name, val, line){
+    let e = this;
+    while (e){ if (e.vars.has(name)){ e.vars.set(name, val); return; } e = e.parent; }
+    throw new AlefError('המשתנה "' + name + '" לא הוגדר. השתמש ב־"יהי ' + name + ' = ..." כדי ליצור אותו', line);
+  }
+  declare(name, val){ this.vars.set(name, val); }
+}
+
+const SIG_BREAK = { sig:'break' };
+const SIG_CONT  = { sig:'continue' };
+class ReturnSignal { constructor(v){ this.value = v; } }
+/* ===== CORE MID ===== */
+
+/* ---------------------------- runtime ---------------------------- */
+
+class Runtime {
+  constructor(printFn, opts){
+    opts = opts || {};
+    this.print = printFn;
+    this.maxMs = opts.maxMs || 5000;
+    this.maxSteps = opts.maxSteps || 8000000;
+    this.deadline = Date.now() + this.maxMs;
+    this.steps = 0;
+    this.depth = 0;
+    this.global = new Env(null);
+    Object.keys(BUILTINS).forEach(name => {
+      this.global.declare(name, { __builtin:true, name, fn:BUILTINS[name] });
+    });
+  }
+
+  tick(line){
+    if (++this.steps > this.maxSteps)
+      throw new AlefError('התוכנית ביצעה יותר מדי פעולות ונעצרה — אולי יש לולאה אינסופית?', line);
+    if ((this.steps & 1023) === 0 && Date.now() > this.deadline)
+      throw new AlefError('התוכנית רצה יותר מ־' + (this.maxMs / 1000) + ' שניות ונעצרה — אולי יש לולאה אינסופית?', line);
+  }
+
+  run(ast){ this.exec(ast, this.global); }
+
+  loopBody(body, env, line){       /* returns true if the loop should stop */
+    try { this.exec(body, env); }
+    catch (e){
+      if (e === SIG_BREAK) return true;
+      if (e === SIG_CONT)  return false;
+      throw e;
+    }
+    return false;
+  }
+
+  exec(node, env){
+    switch (node.type){
+      case 'Block':
+        for (let i = 0; i < node.body.length; i++) this.exec(node.body[i], env);
+        return;
+
+      case 'Let':
+        env.declare(node.name, this.eval(node.value, env));
+        return;
+
+      case 'Assign': {
+        const val = this.eval(node.value, env);
+        const t = node.target;
+        if (t.type === 'Var'){ env.set(t.name, val, node.line); return; }
+        const obj = this.eval(t.obj, env);
+        const key = this.eval(t.index, env);
+        if (Array.isArray(obj)){
+          let k = key;
+          if (typeof k !== 'number') throw new AlefError('מקום ברשימה חייב להיות מספר, קיבלתי ' + typeName(key), node.line);
+          if (k < 0) k += obj.length;
+          if (k < 0 || k >= obj.length)
+            throw new AlefError('המקום ' + fmt(key) + ' לא קיים ברשימה (יש בה ' + obj.length + ' איברים)', node.line);
+          obj[k] = val;
+          return;
+        }
+        if (obj instanceof Map){ obj.set(String(key), val); return; }
+        throw new AlefError('אי אפשר לשנות איבר בתוך ' + typeName(obj), node.line);
+      }
+
+      case 'Print':
+        this.print(node.args.map(a => fmt(this.eval(a, env))).join(' '));
+        return;
+
+      case 'If':
+        if (truthy(this.eval(node.cond, env))) this.exec(node.then, new Env(env));
+        else if (node.alt) this.exec(node.alt, new Env(env));
+        return;
+
+      case 'While':
+        while (truthy(this.eval(node.cond, env))){
+          this.tick(node.line);
+          if (this.loopBody(node.body, new Env(env), node.line)) break;
+        }
+        return;
+
+      case 'ForRange': {
+        const from = this.num(this.eval(node.from, env), node.line, 'ההתחלה של הלולאה');
+        const to   = this.num(this.eval(node.to, env), node.line, 'הסוף של הלולאה');
+        let step = node.step !== null && node.step !== undefined
+          ? this.num(this.eval(node.step, env), node.line, 'גודל הקפיצה')
+          : (from <= to ? 1 : -1);
+        if (step === 0) throw new AlefError('קפיצה בגודל 0 תיצור לולאה אינסופית', node.line);
+        for (let i = from; step > 0 ? i <= to : i >= to; i += step){
+          this.tick(node.line);
+          const e = new Env(env);
+          e.declare(node.name, i);
+          if (this.loopBody(node.body, e, node.line)) break;
+        }
+        return;
+      }
+
+      case 'ForEach': {
+        const it = this.eval(node.iter, env);
+        let items;
+        if (Array.isArray(it)) items = it.slice();
+        else if (typeof it === 'string') items = Array.from(it);
+        else if (it instanceof Map) items = Array.from(it.keys());
+        else throw new AlefError('אפשר לעבור עם "מתוך" רק על רשימה, טקסט או מפה — לא על ' + typeName(it), node.line);
+        for (let i = 0; i < items.length; i++){
+          this.tick(node.line);
+          const e = new Env(env);
+          e.declare(node.name, items[i]);
+          if (this.loopBody(node.body, e, node.line)) break;
+        }
+        return;
+      }
+
+      case 'Func':
+        env.declare(node.name, { __fn:true, name:node.name, params:node.params, body:node.body, closure:env });
+        return;
+
+      case 'Return':
+        throw new ReturnSignal(node.value ? this.eval(node.value, env) : null);
+
+      case 'Break':    throw SIG_BREAK;
+      case 'Continue': throw SIG_CONT;
+      case 'ExprStmt': this.eval(node.expr, env); return;
+    }
+    throw new AlefError('פקודה לא מוכרת', node.line);
+  }
+
+  num(v, line, what){
+    if (typeof v !== 'number') throw new AlefError((what || 'הערך') + ' חייב להיות מספר, אבל קיבלתי ' + typeName(v) + ': ' + fmt(v, true), line);
+    return v;
+  }
+
+  eval(node, env){
+    switch (node.type){
+      case 'Lit': return node.value;
+      case 'Var': return env.get(node.name, node.line);
+
+      case 'ListLit': return node.items.map(x => this.eval(x, env));
+      case 'MapLit': {
+        const m = new Map();
+        node.pairs.forEach(p => m.set(String(this.eval(p[0], env)), this.eval(p[1], env)));
+        return m;
+      }
+
+      case 'Unary': {
+        const v = this.eval(node.v, env);
+        if (node.op === '-') return -this.num(v, node.line, 'הערך אחרי המינוס');
+        return !truthy(v);
+      }
+
+      case 'Logic': {
+        const l = this.eval(node.l, env);
+        if (node.op === 'וגם') return truthy(l) ? truthy(this.eval(node.r, env)) : false;
+        return truthy(l) ? true : truthy(this.eval(node.r, env));
+      }
+
+      case 'Binary': return this.binop(node.op, this.eval(node.l, env), this.eval(node.r, env), node.line);
+
+      case 'Index': {
+        const obj = this.eval(node.obj, env);
+        const key = this.eval(node.index, env);
+        if (Array.isArray(obj) || typeof obj === 'string'){
+          let k = key;
+          if (typeof k !== 'number')
+            throw new AlefError('מקום ב' + typeName(obj) + ' חייב להיות מספר, קיבלתי ' + typeName(key), node.line);
+          if (k < 0) k += obj.length;
+          if (k < 0 || k >= obj.length || !Number.isInteger(k))
+            throw new AlefError('המקום ' + fmt(key) + ' לא קיים — ב' + typeName(obj) + ' יש ' + obj.length + ' איברים (0 עד ' + (obj.length - 1) + ')', node.line);
+          return obj[k];
+        }
+        if (obj instanceof Map){
+          const k = String(key);
+          if (!obj.has(k)) throw new AlefError('המפתח "' + k + '" לא קיים במפה', node.line);
+          return obj.get(k);
+        }
+        throw new AlefError('אי אפשר לגשת לאיבר בתוך ' + typeName(obj), node.line);
+      }
+
+      case 'Call': {
+        const callee = this.eval(node.callee, env);
+        const args = node.args.map(a => this.eval(a, env));
+        return this.call(callee, args, node.line);
+      }
+    }
+    throw new AlefError('ביטוי לא מוכר', node.line);
+  }
+
+  call(callee, args, line){
+    this.tick(line);
+    if (callee && callee.__builtin) return callee.fn(args, line, this);
+    if (callee && callee.__fn){
+      if (args.length !== callee.params.length)
+        throw new AlefError('הפונקציה "' + callee.name + '" מצפה ל־' + callee.params.length +
+          ' ארגומנטים, אבל קיבלה ' + args.length, line);
+      if (++this.depth > 900){
+        this.depth--;
+        throw new AlefError('הפונקציה "' + callee.name + '" קראה לעצמה יותר מדי פעמים (רקורסיה עמוקה מדי)', line);
+      }
+      const e = new Env(callee.closure);
+      callee.params.forEach((p, i) => e.declare(p, args[i]));
+      try {
+        this.exec(callee.body, e);
+        return null;
+      } catch (err){
+        if (err instanceof ReturnSignal) return err.value;
+        throw err;
+      } finally { this.depth--; }
+    }
+    throw new AlefError(typeName(callee) + ' הוא לא פונקציה — אי אפשר לקרוא לו עם סוגריים', line);
+  }
+
+  binop(op, a, b, line){
+    switch (op){
+      case '+':
+        if (typeof a === 'string' || typeof b === 'string'){
+          if (a === null || b === null || typeof a === 'boolean' || typeof b === 'boolean' ||
+              typeof a === 'number' || typeof b === 'number' || typeof a === 'string' && typeof b === 'string')
+            return fmt(a) + fmt(b);
+          return fmt(a) + fmt(b);
+        }
+        if (Array.isArray(a) && Array.isArray(b)) return a.concat(b);
+        return this.num(a, line, 'הערך הראשון בחיבור') + this.num(b, line, 'הערך השני בחיבור');
+      case '-': return this.num(a, line, 'הערך הראשון בחיסור') - this.num(b, line, 'הערך השני בחיסור');
+      case '*':
+        if (typeof a === 'string' && typeof b === 'number') return a.repeat(Math.max(0, Math.floor(b)));
+        if (typeof b === 'string' && typeof a === 'number') return b.repeat(Math.max(0, Math.floor(a)));
+        return this.num(a, line, 'הערך הראשון בכפל') * this.num(b, line, 'הערך השני בכפל');
+      case '/': {
+        const d = this.num(b, line, 'המחלק');
+        if (d === 0) throw new AlefError('אי אפשר לחלק באפס', line);
+        return this.num(a, line, 'המחולק') / d;
+      }
+      case '%': {
+        const d = this.num(b, line, 'המחלק בשארית');
+        if (d === 0) throw new AlefError('אי אפשר לחשב שארית של חלוקה באפס', line);
+        return ((this.num(a, line, 'המחולק') % d) + d) % d;
+      }
+      case '^': return Math.pow(this.num(a, line, 'הבסיס'), this.num(b, line, 'המעריך'));
+      case '==': return deepEq(a, b);
+      case '!=': return !deepEq(a, b);
+      case '<': case '<=': case '>': case '>=': {
+        if (typeof a === 'string' && typeof b === 'string'){
+          const c = a < b ? -1 : a > b ? 1 : 0;
+          return op === '<' ? c < 0 : op === '<=' ? c <= 0 : op === '>' ? c > 0 : c >= 0;
+        }
+        const x = this.num(a, line, 'הערך מימין להשוואה'), y = this.num(b, line, 'הערך משמאל להשוואה');
+        return op === '<' ? x < y : op === '<=' ? x <= y : op === '>' ? x > y : x >= y;
+      }
+    }
+    throw new AlefError('אופרטור לא מוכר: ' + op, line);
+  }
+}
+
+/* ------------------------ built-in functions ------------------------ */
+
+function need(args, n, name, line){
+  if (args.length !== n)
+    throw new AlefError('הפונקציה "' + name + '" מצפה ל־' + n + ' ארגומנטים, קיבלה ' + args.length, line);
+}
+function wantNum(v, name, line){
+  if (typeof v !== 'number') throw new AlefError('"' + name + '" מצפה למספר, קיבלה ' + typeName(v), line);
+  return v;
+}
+function wantList(v, name, line){
+  if (!Array.isArray(v)) throw new AlefError('"' + name + '" מצפה לרשימה, קיבלה ' + typeName(v), line);
+  return v;
+}
+function wantStr(v, name, line){
+  if (typeof v !== 'string') throw new AlefError('"' + name + '" מצפה לטקסט, קיבלה ' + typeName(v), line);
+  return v;
+}
+function flat(args){
+  return (args.length === 1 && Array.isArray(args[0])) ? args[0] : args;
+}
+
+const BUILTINS = {
+  'אורך': (a, l) => {
+    need(a, 1, 'אורך', l);
+    const v = a[0];
+    if (typeof v === 'string' || Array.isArray(v)) return v.length;
+    if (v instanceof Map) return v.size;
+    throw new AlefError('"אורך" עובדת על טקסט, רשימה או מפה — לא על ' + typeName(v), l);
+  },
+  'טקסט': (a, l) => { need(a, 1, 'טקסט', l); return fmt(a[0]); },
+  'מספר': (a, l) => {
+    need(a, 1, 'מספר', l);
+    const v = a[0];
+    if (typeof v === 'number') return v;
+    if (typeof v === 'boolean') return v ? 1 : 0;
+    if (typeof v === 'string'){
+      const n = parseFloat(v.trim());
+      if (Number.isNaN(n)) throw new AlefError('אי אפשר להפוך את הטקסט "' + v + '" למספר', l);
+      return n;
+    }
+    throw new AlefError('אי אפשר להפוך ' + typeName(v) + ' למספר', l);
+  },
+  'שלם': (a, l) => { need(a, 1, 'שלם', l); return Math.trunc(wantNum(a[0], 'שלם', l)); },
+  'עגל': (a, l) => {
+    const n = wantNum(a[0], 'עגל', l);
+    const d = a.length > 1 ? wantNum(a[1], 'עגל', l) : 0;
+    const p = Math.pow(10, d);
+    return Math.round(n * p) / p;
+  },
+  'שורש': (a, l) => {
+    need(a, 1, 'שורש', l);
+    const n = wantNum(a[0], 'שורש', l);
+    if (n < 0) throw new AlefError('אין שורש למספר שלילי', l);
+    return Math.sqrt(n);
+  },
+  'מוחלט': (a, l) => { need(a, 1, 'מוחלט', l); return Math.abs(wantNum(a[0], 'מוחלט', l)); },
+  'מקסימום': (a, l) => {
+    const xs = flat(a);
+    if (!xs.length) throw new AlefError('"מקסימום" צריכה לפחות ערך אחד', l);
+    return xs.reduce((m, x) => Math.max(m, wantNum(x, 'מקסימום', l)), -Infinity);
+  },
+  'מינימום': (a, l) => {
+    const xs = flat(a);
+    if (!xs.length) throw new AlefError('"מינימום" צריכה לפחות ערך אחד', l);
+    return xs.reduce((m, x) => Math.min(m, wantNum(x, 'מינימום', l)), Infinity);
+  },
+  'סכום': (a, l) => flat(a).reduce((s, x) => s + wantNum(x, 'סכום', l), 0),
+  'אקראי': (a, l) => {
+    if (a.length === 0) return Math.random();
+    if (a.length === 1) return Math.floor(Math.random() * wantNum(a[0], 'אקראי', l)) + 1;
+    const lo = wantNum(a[0], 'אקראי', l), hi = wantNum(a[1], 'אקראי', l);
+    return Math.floor(Math.random() * (hi - lo + 1)) + lo;
+  },
+  'הוסף': (a, l) => {
+    if (a.length < 2) throw new AlefError('"הוסף" מצפה לרשימה ולערך', l);
+    const list = wantList(a[0], 'הוסף', l);
+    for (let i = 1; i < a.length; i++) list.push(a[i]);
+    return list;
+  },
+  'הסר': (a, l) => {
+    const list = wantList(a[0], 'הסר', l);
+    if (!list.length) throw new AlefError('אי אפשר להסיר מרשימה ריקה', l);
+    if (a.length > 1){
+      let i = wantNum(a[1], 'הסר', l);
+      if (i < 0) i += list.length;
+      if (i < 0 || i >= list.length) throw new AlefError('המקום ' + fmt(a[1]) + ' לא קיים ברשימה', l);
+      return list.splice(i, 1)[0];
+    }
+    return list.pop();
+  },
+  'מכיל': (a, l) => {
+    need(a, 2, 'מכיל', l);
+    const c = a[0];
+    if (Array.isArray(c)) return c.some(x => deepEq(x, a[1]));
+    if (typeof c === 'string') return c.indexOf(fmt(a[1])) !== -1;
+    if (c instanceof Map) return c.has(String(a[1]));
+    throw new AlefError('"מכיל" עובדת על רשימה, טקסט או מפה', l);
+  },
+  'מיקום': (a, l) => {
+    need(a, 2, 'מיקום', l);
+    const c = a[0];
+    if (Array.isArray(c)){ for (let i = 0; i < c.length; i++) if (deepEq(c[i], a[1])) return i; return -1; }
+    if (typeof c === 'string') return c.indexOf(fmt(a[1]));
+    throw new AlefError('"מיקום" עובדת על רשימה או טקסט', l);
+  },
+  'הפוך': (a, l) => {
+    need(a, 1, 'הפוך', l);
+    if (typeof a[0] === 'string') return Array.from(a[0]).reverse().join('');
+    return wantList(a[0], 'הפוך', l).slice().reverse();
+  },
+  'מיין': (a, l) => {
+    const list = wantList(a[0], 'מיין', l).slice();
+    list.sort((x, y) => {
+      if (typeof x === 'number' && typeof y === 'number') return x - y;
+      const sx = fmt(x), sy = fmt(y);
+      return sx < sy ? -1 : sx > sy ? 1 : 0;
+    });
+    return list;
+  },
+  'פצל': (a, l) => {
+    const s = wantStr(a[0], 'פצל', l);
+    const sep = a.length > 1 ? fmt(a[1]) : ' ';
+    return sep === '' ? Array.from(s) : s.split(sep);
+  },
+  'חבר': (a, l) => {
+    const list = wantList(a[0], 'חבר', l);
+    const sep = a.length > 1 ? fmt(a[1]) : '';
+    return list.map(x => fmt(x)).join(sep);
+  },
+  'החלף': (a, l) => {
+    need(a, 3, 'החלף', l);
+    return wantStr(a[0], 'החלף', l).split(fmt(a[1])).join(fmt(a[2]));
+  },
+  'חתוך': (a, l) => {
+    const v = a[0];
+    if (!Array.isArray(v) && typeof v !== 'string')
+      throw new AlefError('"חתוך" עובדת על רשימה או טקסט', l);
+    const from = a.length > 1 ? wantNum(a[1], 'חתוך', l) : 0;
+    const to = a.length > 2 ? wantNum(a[2], 'חתוך', l) : v.length;
+    return v.slice(from, to);
+  },
+  'מפתחות': (a, l) => {
+    if (!(a[0] instanceof Map)) throw new AlefError('"מפתחות" מצפה למפה, קיבלה ' + typeName(a[0]), l);
+    return Array.from(a[0].keys());
+  },
+  'ערכים': (a, l) => {
+    if (!(a[0] instanceof Map)) throw new AlefError('"ערכים" מצפה למפה, קיבלה ' + typeName(a[0]), l);
+    return Array.from(a[0].values());
+  },
+  'מפה': (a, l) => new Map(),
+  'סוג': (a, l) => { need(a, 1, 'סוג', l); return typeName(a[0]); },
+  'שאל': (a, l) => {
+    const q = a.length ? fmt(a[0]) : 'הזן ערך:';
+    try {
+      const res = (typeof prompt === 'function') ? prompt(q) : null;
+      return res === null ? '' : res;
+    } catch (e){ return ''; }
+  },
+  'זמן': () => Date.now()
+};
+
+const BUILTIN_DOCS = {
+  'אורך':'אורך של טקסט / רשימה / מפה',
+  'טקסט':'הופך כל ערך לטקסט',
+  'מספר':'הופך טקסט למספר',
+  'שלם':'מוריד את החלק העשרוני',
+  'עגל':'עיגול. עגל(3.14159, 2) → 3.14',
+  'שורש':'שורש ריבועי',
+  'מוחלט':'ערך מוחלט',
+  'מקסימום':'הגדול ביותר (מרשימה או מכמה ערכים)',
+  'מינימום':'הקטן ביותר',
+  'סכום':'סכום כל המספרים ברשימה',
+  'אקראי':'אקראי() שבר, אקראי(6) בין 1 ל־6, אקראי(10,20) בטווח',
+  'הוסף':'הוספת ערך לסוף רשימה',
+  'הסר':'הסרת האיבר האחרון, או לפי מקום',
+  'מכיל':'האם קיים ערך ברשימה / טקסט / מפה',
+  'מיקום':'המקום של ערך, או ‎-1 אם אינו קיים',
+  'הפוך':'היפוך רשימה או טקסט',
+  'מיין':'מיון רשימה (מחזיר רשימה חדשה)',
+  'פצל':'פיצול טקסט לרשימה לפי מפריד',
+  'חבר':'חיבור רשימה לטקסט אחד',
+  'החלף':'החלפת כל המופעים בטקסט',
+  'חתוך':'חלק מרשימה או מטקסט: חתוך(x, 1, 3)',
+  'מפתחות':'רשימת המפתחות של מפה',
+  'ערכים':'רשימת הערכים של מפה',
+  'מפה':'יצירת מפה ריקה',
+  'סוג':'שם הסוג של הערך',
+  'שאל':'שאלת המשתמש (חלון קלט)',
+  'זמן':'הזמן הנוכחי באלפיות שנייה'
+};
+
+/* --------------------------- syntax colors --------------------------- */
+
+const HL_RE = /(#[^\n]*|\/\/[^\n]*)|("(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?|\u05F4[^\u05F4\n]*\u05F4?|\u05F3[^\u05F3\n]*\u05F3?|[\u201C\u201D][^\u201C\u201D\n]*[\u201C\u201D]?|[\u2018\u2019][^\u2018\u2019\n]*[\u2018\u2019]?)|(\d+(?:\.\d+)?)|([A-Za-z_\u05D0-\u05EA\u05EF-\u05F2][A-Za-z0-9_\u05D0-\u05EA\u05EF-\u05F2]*(?:[\u05F3\u05F4][A-Za-z0-9_\u05D0-\u05EA\u05EF-\u05F2]+)*[\u05F3\u05F4]?)|([+\-*/%^=!<>&|]+)|([()\[\]{},:.])/g;
+
+function escHtml(s){
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function highlight(src){
+  let out = '', last = 0;
+  src.replace(HL_RE, function(m, com, str, num, id, op, punc, off){
+    out += escHtml(src.slice(last, off));
+    const cls = com ? 'c-com' : str ? 'c-str' : num ? 'c-num'
+      : op ? 'c-op' : punc ? 'c-punc'
+      : KEYWORDS.has(m) ? 'c-kw'
+      : Object.prototype.hasOwnProperty.call(BUILTINS, m) ? 'c-bi' : 'c-id';
+    out += '<span class="' + cls + '">' + escHtml(m) + '</span>';
+    last = off + m.length;
+    return m;
+  });
+  return out + escHtml(src.slice(last)) + '\n';
+}
+
+/* Bidi repair: Unicode rule N1 makes a run like "95, 78, 88" display in reverse
+   inside Hebrew text, because numbers act as RTL for the neutrals between them.
+   Wherever we own the markup (console, docs) we wrap such runs in an LTR isolate.
+   The editor overlay is deliberately left alone: isolating there would move glyphs
+   away from the textarea caret sitting underneath it. */
+const HEB_RE = /[\u0590-\u05FF]/;
+const NEEDS_ISO = /\d[^\u0590-\u05FF]*[,\s][^\u0590-\u05FF]*\d/;
+const ISO_START = /[0-9\[({]/;
+const ISO_END = /[0-9\])}]/;
+
+function pieceText(p){
+  return p.charAt(0) === '<' ? p.slice(p.indexOf('>') + 1, p.lastIndexOf('</')) : p;
+}
+
+function isolateHtml(html){
+  const pieces = html.match(/<span class="[^"]*">[^<]*<\/span>|[^<]+/g);
+  if (!pieces) return html;
+  let out = '', buf = [];
+
+  /* emit what is waiting, isolating only the part that runs from the first
+     number/opening-bracket to the last number/closing-bracket, so that a
+     trailing ":" or "—" keeps sitting next to its Hebrew word. */
+  const flush = () => {
+    if (!buf.length) return;
+    if (NEEDS_ISO.test(buf.map(x => x.t).join(''))){
+      let a = 0, b = buf.length - 1;
+      while (a < buf.length && !ISO_START.test(buf[a].t)) a++;
+      while (b >= 0 && !ISO_END.test(buf[b].t)) b--;
+      if (a <= b){
+        const part = (i, j) => buf.slice(i, j).map(x => x.h).join('');
+        out += part(0, a) + '<span class="iso">' + part(a, b + 1) + '</span>' + part(b + 1, buf.length);
+        buf = [];
+        return;
+      }
+    }
+    out += buf.map(x => x.h).join('');
+    buf = [];
+  };
+
+  const add = (h, t) => {
+    if (HEB_RE.test(t)){ flush(); out += h; }
+    else buf.push({ h, t });
+  };
+
+  for (let i = 0; i < pieces.length; i++){
+    const piece = pieces[i];
+    if (piece.charAt(0) === '<'){ add(piece, pieceText(piece)); continue; }
+    const runs = piece.match(/[\u0590-\u05FF]+|[^\u0590-\u05FF]+/g) || [];
+    for (let j = 0; j < runs.length; j++){
+      if (HEB_RE.test(runs[j])){ add(runs[j], runs[j]); continue; }
+      const words = runs[j].split(/(\s+)/);
+      for (let k = 0; k < words.length; k++) if (words[k]) add(words[k], words[k]);
+    }
+  }
+  flush();
+  return out;
+}
+
+/* ------------------------------ facade ------------------------------ */
+
+function interpret(src, printFn, opts){
+  const ast = new Parser(tokenize(src)).parseProgram();
+  const rt = new Runtime(printFn, opts);
+  rt.run(ast);
+  return rt;
+}
+/* ===== CORE END ===== */
+
+/* ============================================================
+   העורך — הדגשת תחביר, מספרי שורות, הרצה ופלט
+   ============================================================ */
+
+const EXAMPLES = [
+  { name: 'שלום עולם', code:
+'# ברוך הבא לאלף — שפת תכנות בעברית!\n' +
+'# לחץ על "הרץ" (או Ctrl+Enter) כדי להריץ.\n' +
+'\n' +
+'הצג "שלום עולם!"\n' +
+'\n' +
+'יהי שם = "שמואל"\n' +
+'הצג "נעים להכיר, " + שם + "!"\n' +
+'הצג "שתיים ועוד שתיים זה", 2 + 2\n' },
+
+  { name: 'משתנים וחשבון', code:
+'יהי מחיר = 250\n' +
+'יהי הנחה = 15\n' +
+'\n' +
+'יהי חיסכון = מחיר * הנחה / 100\n' +
+'יהי לתשלום = מחיר - חיסכון\n' +
+'\n' +
+'הצג "מחיר מקורי:  " + מחיר + " ש\\"ח"\n' +
+'הצג "הנחה:        " + הנחה + "%"\n' +
+'הצג "חוסכים:      " + חיסכון + " ש\\"ח"\n' +
+'הצג "סך הכל:      " + לתשלום + " ש\\"ח"\n' },
+
+  { name: 'תנאים — מחשבון ציונים', code:
+'יהי ציון = 84\n' +
+'\n' +
+'אם ציון >= 95 אז\n' +
+'    הצג "מצוין מאוד!"\n' +
+'אחרת אם ציון >= 85 אז\n' +
+'    הצג "מצוין"\n' +
+'אחרת אם ציון >= 70 אז\n' +
+'    הצג "טוב"\n' +
+'אחרת אם ציון >= 55 אז\n' +
+'    הצג "עובר"\n' +
+'אחרת\n' +
+'    הצג "צריך לחזור על החומר"\n' +
+'סוף\n' +
+'\n' +
+'אם ציון > 60 וגם ציון < 90 אז\n' +
+'    הצג "יש עוד לאן להתקדם"\n' +
+'סוף\n' },
+
+  { name: 'לולאה — לוח הכפל', code:
+'יהי לוח = 7\n' +
+'\n' +
+'הצג "לוח הכפל של " + לוח + ":"\n' +
+'\n' +
+'לכל מספר מ 1 עד 10\n' +
+'    הצג לוח + " × " + מספר + " = " + (לוח * מספר)\n' +
+'סוף\n' },
+
+  { name: 'פיזבאז', code:
+'לכל מספר מ 1 עד 30\n' +
+'    אם מספר % 15 == 0 אז\n' +
+'        הצג "פיזבאז"\n' +
+'    אחרת אם מספר % 3 == 0 אז\n' +
+'        הצג "פיז"\n' +
+'    אחרת אם מספר % 5 == 0 אז\n' +
+'        הצג "באז"\n' +
+'    אחרת\n' +
+'        הצג מספר\n' +
+'    סוף\n' +
+'סוף\n' },
+
+  { name: 'פונקציות ורקורסיה', code:
+'פונקציה ריבוע(מספר)\n' +
+'    החזר מספר * מספר\n' +
+'סוף\n' +
+'\n' +
+'פונקציה עצרת(נ)\n' +
+'    אם נ <= 1 אז\n' +
+'        החזר 1\n' +
+'    סוף\n' +
+'    החזר נ * עצרת(נ - 1)\n' +
+'סוף\n' +
+'\n' +
+'פונקציה פיבונאצי(נ)\n' +
+'    אם נ < 2 אז\n' +
+'        החזר נ\n' +
+'    סוף\n' +
+'    החזר פיבונאצי(נ - 1) + פיבונאצי(נ - 2)\n' +
+'סוף\n' +
+'\n' +
+'הצג "ריבוע של 9 =", ריבוע(9)\n' +
+'הצג "עצרת של 6 =", עצרת(6)\n' +
+'\n' +
+'הצג "סדרת פיבונאצי:"\n' +
+'לכל i מ 0 עד 12\n' +
+'    הצג פיבונאצי(i)\n' +
+'סוף\n' },
+
+  { name: 'רשימות — ניתוח ציונים', code:
+'יהי ציונים = [95, 78, 88, 100, 62, 91]\n' +
+'\n' +
+'יהי סכום = 0\n' +
+'לכל ציון מתוך ציונים\n' +
+'    סכום = סכום + ציון\n' +
+'סוף\n' +
+'\n' +
+'הצג "הציונים:      ", ציונים\n' +
+'הצג "כמות:         ", אורך(ציונים)\n' +
+'הצג "ממוצע:        ", עגל(סכום / אורך(ציונים), 1)\n' +
+'הצג "הגבוה ביותר:  ", מקסימום(ציונים)\n' +
+'הצג "הנמוך ביותר:  ", מינימום(ציונים)\n' +
+'הצג "ממוין:        ", מיין(ציונים)\n' +
+'\n' +
+'יהי עברו = []\n' +
+'לכל ציון מתוך ציונים\n' +
+'    אם ציון >= 85 אז\n' +
+'        הוסף(עברו, ציון)\n' +
+'    סוף\n' +
+'סוף\n' +
+'הצג "מעל 85:       ", עברו\n' },
+
+  { name: 'מפות — כרטיס תלמיד', code:
+'יהי תלמיד = {\n' +
+'    "שם": "נועה כהן",\n' +
+'    "כיתה": "י\'2",\n' +
+'    "ציונים": [92, 88, 100]\n' +
+'}\n' +
+'\n' +
+'הצג "שם:   " + תלמיד.שם\n' +
+'הצג "כיתה: " + תלמיד["כיתה"]\n' +
+'הצג "ממוצע:", עגל(סכום(תלמיד.ציונים) / אורך(תלמיד.ציונים), 2)\n' +
+'\n' +
+'הצג ""\n' +
+'הצג "כל השדות בכרטיס:"\n' +
+'לכל שדה מתוך תלמיד\n' +
+'    הצג "  " + שדה + " → " + טקסט(תלמיד[שדה])\n' +
+'סוף\n' },
+
+  { name: 'משחק — ניחוש בינארי', code:
+'# המחשב מגריל מספר, ואז מנחש אותו בעצמו\n' +
+'# בשיטת החיפוש הבינארי\n' +
+'\n' +
+'יהי סודי = אקראי(1, 100)\n' +
+'יהי נמוך = 1\n' +
+'יהי גבוה = 100\n' +
+'יהי ניסיונות = 0\n' +
+'\n' +
+'הצג "הגרלתי מספר בין 1 ל־100. מנחש..."\n' +
+'\n' +
+'כלעוד נמוך <= גבוה\n' +
+'    יהי אמצע = שלם((נמוך + גבוה) / 2)\n' +
+'    ניסיונות = ניסיונות + 1\n' +
+'\n' +
+'    אם אמצע == סודי אז\n' +
+'        הצג "  ניחוש " + ניסיונות + ": " + אמצע + " — מצאתי!"\n' +
+'        עצור\n' +
+'    אחרת אם אמצע < סודי אז\n' +
+'        הצג "  ניחוש " + ניסיונות + ": " + אמצע + " — נמוך מדי"\n' +
+'        נמוך = אמצע + 1\n' +
+'    אחרת\n' +
+'        הצג "  ניחוש " + ניסיונות + ": " + אמצע + " — גבוה מדי"\n' +
+'        גבוה = אמצע - 1\n' +
+'    סוף\n' +
+'סוף\n' +
+'\n' +
+'הצג "המספר היה " + סודי + ", מצאתי אותו ב־" + ניסיונות + " ניסיונות"\n' },
+
+  { name: 'ציור — פירמידה', code:
+'יהי גובה = 8\n' +
+'\n' +
+'לכל שורה מ 1 עד גובה\n' +
+'    יהי רווחים = " " * (גובה - שורה)\n' +
+'    יהי כוכבים = "★" * (שורה * 2 - 1)\n' +
+'    הצג רווחים + כוכבים\n' +
+'סוף\n' +
+'\n' +
+'לכל שורה מ גובה עד 1\n' +
+'    הצג " " * (גובה - שורה) + "▓" * (שורה * 2 - 1)\n' +
+'סוף\n' },
+
+  { name: 'טקסט — הפוך ופלינדרום', code:
+'פונקציה פלינדרום(טקסט_בדיקה)\n' +
+'    יהי נקי = החלף(טקסט_בדיקה, " ", "")\n' +
+'    החזר נקי == הפוך(נקי)\n' +
+'סוף\n' +
+'\n' +
+'יהי מילים = ["אבא", "שלום", "אמת תמא", "ילד"]\n' +
+'\n' +
+'לכל מילה מתוך מילים\n' +
+'    אם פלינדרום(מילה) אז\n' +
+'        הצג "\\"" + מילה + "\\" — פלינדרום!"\n' +
+'    אחרת\n' +
+'        הצג "\\"" + מילה + "\\" — לא פלינדרום (הפוך: " + הפוך(מילה) + ")"\n' +
+'    סוף\n' +
+'סוף\n' }
+];
+
+(function(){
+  const $ = id => document.getElementById(id);
+  const ta = $('code'), hl = $('hl'), gutter = $('gutter'), out = $('out');
+  const KEY = 'alef.code.v1';
+
+  /* ---- rendering ---- */
+  let errLine = 0;
+
+  function render(){
+    const src = ta.value;
+    hl.innerHTML = highlight(src);
+    const count = src.split('\n').length;
+    let g = '';
+    for (let i = 1; i <= count; i++) g += '<b' + (i === errLine ? ' class="on"' : '') + '>' + i + '</b>';
+    gutter.innerHTML = g;
+    sync();
+    try { localStorage.setItem(KEY, src); } catch (e) {}
+    $('meta').textContent = count + ' שורות · ' + src.length + ' תווים';
+  }
+
+  function sync(){
+    hl.scrollTop = ta.scrollTop;
+    hl.scrollLeft = ta.scrollLeft;
+    gutter.scrollTop = ta.scrollTop;
+  }
+
+  function updatePos(){
+    const upto = ta.value.slice(0, ta.selectionStart).split('\n');
+    $('pos').textContent = 'שורה ' + upto.length + ', עמודה ' + (upto[upto.length - 1].length + 1);
+  }
+
+  /* ---- running ---- */
+  const MAX_LINES = 3000;
+
+  function run(){
+    const started = performance.now();
+    const lines = [];
+    let overflow = 0;
+    errLine = 0;
+    out.innerHTML = '';
+
+    const print = s => {
+      if (lines.length < MAX_LINES) lines.push(s); else overflow++;
+    };
+
+    let err = null;
+    try {
+      interpret(ta.value, print, { maxMs: 5000 });
+    } catch (e) {
+      err = e;
+    }
+
+    const ms = Math.round(performance.now() - started);
+    const frag = document.createDocumentFragment();
+
+    for (let i = 0; i < lines.length; i++){
+      const d = document.createElement('div');
+      d.className = 'ln';
+      if (lines[i] === '') d.textContent = ' ';
+      else d.innerHTML = isolateHtml(escHtml(lines[i]));
+      frag.appendChild(d);
+    }
+    if (overflow){
+      const d = document.createElement('div');
+      d.className = 'ok';
+      d.textContent = '…ועוד ' + overflow + ' שורות שלא הוצגו (הפלט ארוך מדי)';
+      frag.appendChild(d);
+    }
+
+    if (err){
+      const d = document.createElement('div');
+      d.className = 'err';
+      if (err instanceof AlefError || err.line !== undefined){
+        errLine = err.line || 0;
+        d.innerHTML = isolateHtml(escHtml('✖ שגיאה' + (err.line ? ' בשורה ' + err.line : '') + ':\n' + err.message));
+      } else if (err instanceof RangeError){
+        d.textContent = '✖ שגיאה: התוכנית נכנסה לעומק גדול מדי (אולי רקורסיה אינסופית?)';
+      } else {
+        d.textContent = '✖ שגיאה לא צפויה: ' + err.message;
+      }
+      frag.appendChild(d);
+      $('status').textContent = 'נעצר עקב שגיאה';
+      $('status').style.color = 'var(--red)';
+    } else {
+      const d = document.createElement('div');
+      d.className = 'ok';
+      d.textContent = '✔ התוכנית הסתיימה בהצלחה · ' + ms + ' מ״ש · ' + lines.length + ' שורות פלט';
+      frag.appendChild(d);
+      $('status').textContent = 'רץ בהצלחה';
+      $('status').style.color = 'var(--green)';
+    }
+
+    if (!lines.length && !err){
+      const d = document.createElement('span');
+      d.className = 'empty';
+      d.textContent = 'התוכנית רצה אבל לא הדפיסה כלום. נסה להוסיף פקודת "הצג".';
+      frag.insertBefore(d, frag.firstChild);
+    }
+
+    out.appendChild(frag);
+    out.scrollTop = 0;
+    showTab('out');
+    render();
+  }
+
+  /* ---- tabs ---- */
+  function showTab(name){
+    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    document.querySelectorAll('.tabpanel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + name));
+  }
+  document.querySelectorAll('.tab').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+
+  /* ---- editor behaviour ---- */
+  ta.addEventListener('input', render);
+  ta.addEventListener('scroll', sync);
+  ta.addEventListener('keyup', updatePos);
+  ta.addEventListener('click', updatePos);
+
+  ta.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter'){ e.preventDefault(); run(); return; }
+
+    if (e.key === 'Tab'){
+      e.preventDefault();
+      const s = ta.selectionStart, en = ta.selectionEnd, v = ta.value;
+      const lineStart = v.lastIndexOf('\n', s - 1) + 1;
+      if (e.shiftKey){
+        const cur = v.slice(lineStart, lineStart + 4);
+        const cut = cur.startsWith('    ') ? 4 : (cur.match(/^ +/) || [''])[0].length;
+        if (cut){
+          ta.value = v.slice(0, lineStart) + v.slice(lineStart + cut);
+          ta.selectionStart = ta.selectionEnd = Math.max(lineStart, s - cut);
+        }
+      } else {
+        ta.value = v.slice(0, s) + '    ' + v.slice(en);
+        ta.selectionStart = ta.selectionEnd = s + 4;
+      }
+      render(); updatePos();
+      return;
+    }
+
+    if (e.key === 'Enter'){
+      const s = ta.selectionStart, v = ta.value;
+      const lineStart = v.lastIndexOf('\n', s - 1) + 1;
+      const line = v.slice(lineStart, s);
+      const indent = (line.match(/^[ \t]*/) || [''])[0];
+      const opens = /(^|\s)(אם|אחרת|כלעוד|לכל|פונקציה)(\s|$)/.test(line.trim().split('#')[0]) &&
+                    !/(^|\s)סוף(\s|$)/.test(line.trim());
+      const closes = /^\s*(סוף|אחרת)/.test(v.slice(lineStart).split('\n')[0]);
+      if (indent || opens){
+        e.preventDefault();
+        const add = indent + (opens ? '    ' : '');
+        ta.value = v.slice(0, s) + '\n' + add + v.slice(ta.selectionEnd);
+        ta.selectionStart = ta.selectionEnd = s + 1 + add.length;
+        render(); updatePos();
+      }
+      return;
+    }
+  });
+
+  /* ---- buttons ---- */
+  $('runBtn').onclick = run;
+
+  $('clearBtn').onclick = () => {
+    out.innerHTML = '<span class="empty">הפלט נוקה.</span>';
+    errLine = 0;
+    $('status').textContent = 'מוכן';
+    $('status').style.color = '';
+    render();
+    showTab('out');
+  };
+
+  $('copyBtn').onclick = async () => {
+    const label = $('copyBtn');
+    try {
+      await navigator.clipboard.writeText(ta.value);
+      label.textContent = 'הועתק ✓';
+    } catch (e){
+      ta.select();
+      try { document.execCommand('copy'); label.textContent = 'הועתק ✓'; }
+      catch (e2){ label.textContent = 'לא הצלחתי'; }
+    }
+    setTimeout(() => { label.textContent = 'העתק'; }, 1400);
+  };
+
+  const sel = $('examples');
+  sel.innerHTML = '<option value="">דוגמאות…</option>' +
+    EXAMPLES.map((e, i) => '<option value="' + i + '">' + e.name + '</option>').join('');
+  sel.onchange = () => {
+    const i = sel.value;
+    if (i === '') return;
+    ta.value = EXAMPLES[i].code;
+    errLine = 0;
+    render();
+    ta.focus();
+    ta.selectionStart = ta.selectionEnd = 0;
+    sel.value = '';
+    run();
+  };
+
+  /* ---- docs ---- */
+  const rows = Object.keys(BUILTIN_DOCS)
+    .map(k => '<tr><td>' + k + '</td><td>' + BUILTIN_DOCS[k] + '</td></tr>').join('');
+  document.getElementById('bi-table').innerHTML = rows;
+  document.querySelectorAll('.sample').forEach(el => { el.innerHTML = isolateHtml(highlight(el.textContent).replace(/\n$/, '')); });
+
+  /* ---- boot ---- */
+  let saved = '';
+  try { saved = localStorage.getItem(KEY) || ''; } catch (e) {}
+  ta.value = saved || EXAMPLES[0].code;
+  render();
+  updatePos();
+  ta.focus();
+  window.addEventListener('resize', sync);
+})();
+</script>
+</body>
+</html>
